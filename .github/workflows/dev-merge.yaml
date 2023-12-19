@@ -1,0 +1,75 @@
+name: Merge with develop branch
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - develop
+  workflow_dispatch:  
+
+jobs:
+  dev-pr-merge:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout our repository
+      uses: actions/checkout@v2
+      with:
+        ref: develop
+        fetch-depth: 0 
+    
+    - name: Configure Git
+      run: |
+        git config user.name "$GITHUB_ACTOR"
+        git config user.email "$GITHUB_ACTOR@users.noreply.github.com"  
+    
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: v3.11.1
+
+    - name: Developer Values YAML
+      run: |
+        cp -f charts/postgres-operator-ui/environments/dev/values.yaml charts/postgres-operator-ui/
+
+    - name: Save current changes for client-cluster-values.yaml
+      run: |
+         git diff --exit-code charts/postgres-operator-ui/values.yaml || (git add charts/postgres-operator-ui/values.yaml && git commit -m "updated dev values" && git push origin develop)
+    
+    - name: Run chart-releaser
+      uses: helm/chart-releaser-action@v1.5.0
+      with:
+        charts_dir: charts
+      env:
+        CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+    - name: Extract Chart Version
+      id: chart_version
+      run: |
+        VERSION=$(grep 'version:' charts/postgres-operator-ui/Chart.yaml | cut -d ' ' -f 2)
+        echo "VERSION=v$VERSION" >> $GITHUB_ENV
+
+    - name: Generate Changelog
+      uses: mikepenz/release-changelog-builder-action@latest
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        configuration: "configuration.json"
+
+    - name: Update Releases.md
+      run: |
+        echo "## Version ${{ env.CHART_VERSION }}" >> Releases.md
+        echo "${{ steps.generate_changelog.outputs.changelog }}" >> Releases.md
+        git commit -am "Update Releases.md for ${{ env.CHART_VERSION }}"
+        git push
+
+    - name: Create Git Tag
+      run: |
+        git tag -a ${{ env.VERSION }} -m "Release ${{ env.VERSION }}"
+        git push origin ${{ env.VERSION }}
+
+      
+
+        
