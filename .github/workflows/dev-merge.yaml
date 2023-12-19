@@ -62,7 +62,7 @@ jobs:
       run: |
         echo "## Version ${{ env.VERSION }}" >> Releases.md
         echo "${{ steps.generate_changelog.outputs.changelog }}" >> Releases.md
-        git commit -am "Update Releases.md for ${{ env.CHART_VERSION }}"
+        git commit -am "Update Releases.md for ${{ env.VERSION }}"
         git push
 
     - name: Create Git Tag
