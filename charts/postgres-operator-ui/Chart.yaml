@@ -16,4 +16,4 @@ maintainers:
 name: postgres-operator-ui
 sources:
 - https://github.com/zalando/postgres-operator
-version: 1.10.1
+version: 1.11.1-dev
